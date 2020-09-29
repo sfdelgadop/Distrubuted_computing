@@ -1,9 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 	"time"
 )
+
+const indSize = 10
+const popSize = 20
+const generations = 50
 
 func testfunc(genome []int) float32 {
 	var rta float32 = 0.0
@@ -13,26 +18,51 @@ func testfunc(genome []int) float32 {
 	return rta
 }
 
+func initPopulation(function func([]int) float32) [popSize]Agent {
+	var population [popSize]Agent
+	for i := range population {
+		population[i] = RandomAgent(indSize)
+		population[i].Evaluate(function)
+	}
+	return population
+}
+
+func getBest(agents ...Agent) Agent {
+	best := agents[0]
+	for _, agent := range agents {
+		if agent.fitness > best.fitness {
+			best = agent
+		}
+	}
+	return best
+}
+
 func main() {
-	size := 10
 	rand.Seed(time.Now().UnixNano())
+	population := initPopulation(testfunc)
 
-	agent1 := RandomAgent(size)
-	agent1.Evaluate(testfunc)
-	agent1.PrintAgent()
-
-	Mutate(&agent1)
-	agent1.Evaluate(testfunc)
-	agent1.PrintAgent()
-
-	agent2 := RandomAgent(size)
-	agent2.Evaluate(testfunc)
-	agent2.PrintAgent()
-
-	agent3, agent4 := Crossover(&agent1, &agent2)
-	agent3.Evaluate(testfunc)
-	agent4.Evaluate(testfunc)
-
-	agent3.PrintAgent()
-	agent4.PrintAgent()
+	i := 0
+	var offspring [popSize]Agent
+	for i < generations {
+		fmt.Printf("Best %d: ", i)
+		getBest(population[:]...).PrintAgent()
+		for j := range population {
+			if rand.Float32() < 1 {
+				pair := rand.Intn(popSize)
+				n1, n2 := Crossover(&population[j], &population[pair])
+				n1.Evaluate(testfunc)
+				n2.Evaluate(testfunc)
+				best := getBest(n1, n2)
+				Mutate(&best)
+				best.Evaluate(testfunc)
+				offspring[j] = getBest(population[j], best)
+			} else {
+				offspring[j] = population[j]
+			}
+		}
+		population = offspring
+		i++
+	}
+	fmt.Printf("Best %d: ", i)
+	getBest(population[:]...).PrintAgent()
 }
